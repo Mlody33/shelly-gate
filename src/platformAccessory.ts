@@ -1,141 +1,220 @@
-import type { CharacteristicValue, PlatformAccessory, Service } from 'homebridge';
-
-import type { ExampleHomebridgePlatform } from './platform.js';
+import type { CharacteristicValue, Logging, PlatformAccessory, Service } from 'homebridge';
+import type { DrivewayGatePlatformPlugin } from './platform.js';
+import type { DeviceConfig } from './config.js';
+import { CommunicationHandler } from './communicationHandler.js';
+import { NotifyStatus, SetSwitch, GetStatus, GetDeviceInfo } from './response.js';
 
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
  * Each accessory may expose multiple services of different service types.
  */
-export class ExamplePlatformAccessory {
+
+export class DrivewayGateAccessory extends CommunicationHandler {
+
   private service: Service;
 
-  /**
-   * These are just used to create a working example
-   * You should implement your own code to track the state of your accessory
-   */
-  private exampleStates = {
-    On: false,
-    Brightness: 100,
-  };
-
   constructor(
-    private readonly platform: ExampleHomebridgePlatform,
+    private readonly platform: DrivewayGatePlatformPlugin,
     private readonly accessory: PlatformAccessory,
+    public readonly deviceConfig: DeviceConfig,
+    public readonly log: Logging,
+    private readonly CurrentDoorState = platform.Characteristic.CurrentDoorState,
+    private readonly TargetDoorState = platform.Characteristic.TargetDoorState,
   ) {
-    // set accessory information
+    super(deviceConfig, log);
+    this.sendGetDeviceInfo();
+    this.sendGetStatus();
+
+    this.service = this.accessory.getService(this.platform.Service.GarageDoorOpener) || this.accessory.addService(this.platform.Service.GarageDoorOpener);
+    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.displayName);
+    this.service.getCharacteristic(CurrentDoorState)
+      .onGet(this.handleCurrentDoorStateGet.bind(this));
+
+    this.service.getCharacteristic(TargetDoorState)
+      .onGet(this.handleTargetDoorStateGet.bind(this))
+      .onSet(this.handleTargetDoorStateSet.bind(this));
+  }
+
+  private get lastState(): number {
+    return this.accessory.context.lastState;
+  }
+
+  private set lastState(value: number) {
+    this.accessory.context.lastState = value;
+  }
+
+  private get targetState(): number {
+    return this.accessory.context.targetState;
+  }
+
+  private set targetState(value: number) {
+    this.accessory.context.targetState = value;
+  }
+
+  protected async handleGetDeviceInfo(res: GetDeviceInfo): Promise<void> {
+    this.log.debug('<< GetDeviceInfo', res.result.id);
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Default-Manufacturer')
-      .setCharacteristic(this.platform.Characteristic.Model, 'Default-Model')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'Default-Serial');
-
-    // get the LightBulb service if it exists, otherwise create a new LightBulb service
-    // you can create multiple services for each accessory
-    this.service = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
-
-    // set the service name, this is what is displayed as the default name on the Home app
-    // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.exampleDisplayName);
-
-    // each service must implement at-minimum the "required characteristics" for the given service type
-    // see https://developers.homebridge.io/#/service/Lightbulb
-
-    // register handlers for the On/Off Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.On)
-      .onSet(this.setOn.bind(this)) // SET - bind to the `setOn` method below
-      .onGet(this.getOn.bind(this)); // GET - bind to the `getOn` method below
-
-    // register handlers for the Brightness Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.Brightness)
-      .onSet(this.setBrightness.bind(this)); // SET - bind to the `setBrightness` method below
-
-    /**
-     * Creating multiple services of the same type.
-     *
-     * To avoid "Cannot add a Service with the same UUID another Service without also defining a unique 'subtype' property." error,
-     * when creating multiple services of the same type, you need to use the following syntax to specify a name and subtype id:
-     * this.accessory.getService('NAME') || this.accessory.addService(this.platform.Service.Lightbulb, 'NAME', 'USER_DEFINED_SUBTYPE_ID');
-     *
-     * The USER_DEFINED_SUBTYPE must be unique to the platform accessory (if you platform exposes multiple accessories, each accessory
-     * can use the same subtype id.)
-     */
-
-    // Example: add two "motion sensor" services to the accessory
-    const motionSensorOneService = this.accessory.getService('Motion Sensor One Name')
-      || this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor One Name', 'YourUniqueIdentifier-1');
-
-    const motionSensorTwoService = this.accessory.getService('Motion Sensor Two Name')
-      || this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor Two Name', 'YourUniqueIdentifier-2');
-
-    /**
-     * Updating characteristics values asynchronously.
-     *
-     * Example showing how to update the state of a Characteristic asynchronously instead
-     * of using the `on('get')` handlers.
-     * Here we change update the motion sensor trigger states on and off every 10 seconds
-     * the `updateCharacteristic` method.
-     *
-     */
-    let motionDetected = false;
-    setInterval(() => {
-      // EXAMPLE - inverse the trigger
-      motionDetected = !motionDetected;
-
-      // push the new value to HomeKit
-      motionSensorOneService.updateCharacteristic(this.platform.Characteristic.MotionDetected, motionDetected);
-      motionSensorTwoService.updateCharacteristic(this.platform.Characteristic.MotionDetected, !motionDetected);
-
-      this.platform.log.debug('Triggering motionSensorOneService:', motionDetected);
-      this.platform.log.debug('Triggering motionSensorTwoService:', !motionDetected);
-    }, 10000);
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Shelly Plus 1')
+      .setCharacteristic(this.platform.Characteristic.Model, res.result.model)
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, res.result.mac)
+      .setCharacteristic(this.platform.Characteristic.FirmwareRevision, res.result.ver);
   }
 
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, turning on a Light bulb.
-   */
-  async setOn(value: CharacteristicValue) {
-    // implement your own code to turn your device on/off
-    this.exampleStates.On = value as boolean;
+  protected handleGetStatus(res: GetStatus): void {
+    this.log.debug('<< GetStatus', res.result['input:0']);
+    // this is first update of gate states
+    if (typeof this.lastState === 'undefined' || typeof this.targetState === 'undefined') {
 
-    this.platform.log.debug('Set Characteristic On ->', value);
+      this.log.debug('First check. lastState | targetState undefined');
+      if (res.result['input:0'].state) {
+        this.lastState = this.CurrentDoorState.OPEN;
+        this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPEN);
+      } else {
+        this.lastState = this.CurrentDoorState.CLOSED;
+        this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSED);
+      }
+
+      this.targetState = this.lastState;
+
+    } else {
+
+      if (this.targetState === this.lastState) {
+
+        this.log.debug('Gate is in it desired state. So just to make sure that state is correct');
+        if (res.result['input:0'].state) {
+          this.lastState = this.CurrentDoorState.OPEN;
+          this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPEN);
+        } else if (!res.result['input:0'].state) {
+          this.lastState = this.CurrentDoorState.CLOSED;
+          this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSED);
+        }
+        this.targetState = this.lastState;
+      } else {
+
+        this.log.debug('Gate is still opereting. Do not update');
+        if (this.lastState === this.CurrentDoorState.OPENING) {
+          this.log.debug('Gate is still opening');
+        } else if (this.lastState === this.CurrentDoorState.CLOSING) {
+          this.log.debug('Gate is still closing');
+        }
+        this.log.debug('I will wait 10 sec and check state again');
+        setTimeout(() => {
+          this.log.debug('checking state');
+          this.sendGetStatus();
+        }, 10000);
+        // shoudl check again in few second, maybe store some information that i double check if not meet condition the obtructed detected case
+      }
+    }
   }
 
-  /**
-   * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory, for example, checking if a Light bulb is on.
-   *
-   * GET requests should return as fast as possible. A long delay here will result in
-   * HomeKit being unresponsive and a bad user experience in general.
-   *
-   * If your device takes time to respond you should update the status of your device
-   * asynchronously instead using the `updateCharacteristic` method instead.
-   * In this case, you may decide not to implement `onGet` handlers, which may speed up
-   * the responsiveness of your device in the Home app.
-
-   * @example
-   * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
-   */
-  async getOn(): Promise<CharacteristicValue> {
-    // implement your own code to check if the device is on
-    const isOn = this.exampleStates.On;
-
-    this.platform.log.debug('Get Characteristic On ->', isOn);
-
-    // if you need to return an error to show the device as "Not Responding" in the Home app:
-    // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
-
-    return isOn;
+  protected handleSet(res: SetSwitch): void {
+    this.log('Gate switch changed', res);
   }
 
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, changing the Brightness
-   */
-  async setBrightness(value: CharacteristicValue) {
-    // implement your own code to set the brightness
-    this.exampleStates.Brightness = value as number;
+  protected handleNotifyStatus(res: NotifyStatus): void {
+    this.log.debug('<< NotifyStatus', res);
 
-    this.platform.log.debug('Set Characteristic Brightness -> ', value);
+    if (res.params['input:0']?.state === true) {
+      this.log.debug('received event that gate is not closed anymore');
+      if (this.lastState === this.CurrentDoorState.OPENING &&
+        this.targetState === this.TargetDoorState.OPEN) {
+        this.log.debug('gate is opening');
+      } else {
+        this.log.warn('GATE IS NOT OPENING');
+      }
+    } else if (res.params['input:0']?.state === false) {
+      this.log.debug('received event that gate has been closed');
+      if (this.lastState === this.platform.Characteristic.CurrentDoorState.CLOSING &&
+        this.targetState === this.TargetDoorState.CLOSED) {
+
+        this.log.warn('it seems that gate closed little bit faster than i expected. Consider to shorten close time');
+        this.lastState = this.platform.Characteristic.CurrentDoorState.CLOSED;
+        this.service.setCharacteristic(this.platform.Characteristic.CurrentDoorState, this.platform.Characteristic.CurrentDoorState.CLOSED);
+      }
+    } else {
+      this.log.debug('any other event i got');
+    }
+
+    //monitor event that gate has been closed durning openning or closing (i can detect this when i gate event that switch state has been changed)
   }
+
+  handleCurrentDoorStateGet() {
+    this.log.debug('Triggered GET CurrentDoorState', this.translateState(this.lastState));
+    //should not send event if lastState != targetDoorState as it means that still openning or closing
+    return this.lastState;
+  }
+
+  handleTargetDoorStateGet() {
+    this.log.debug('Triggered GET TargetDoorState', this.translateState(this.targetState));
+    return this.targetState;
+  }
+
+  handleTargetDoorStateSet(targetValue: CharacteristicValue) {
+    this.log.info('Triggered SET TargetDoorState:', this.translateState(targetValue));
+
+    if (targetValue === this.TargetDoorState.OPEN) {
+      if (this.lastState === this.platform.Characteristic.CurrentDoorState.CLOSED) {
+        this.sendSet();
+        this.log.debug(`Opening... ${this.deviceConfig.openTime}s remaining`);
+        this.targetState = targetValue;
+        this.lastState = this.CurrentDoorState.OPENING;
+        this.service.setCharacteristic(this.platform.Characteristic.CurrentDoorState, this.CurrentDoorState.OPENING);
+
+        //i can only check if gate isn't closed yet
+        setTimeout(() => {
+          this.log.debug('Should be opened now');
+          this.targetState = this.TargetDoorState.OPEN;
+          this.lastState = this.platform.Characteristic.CurrentDoorState.OPEN;
+          this.sendGetStatus();
+        }, this.deviceConfig.openTime * 1000);
+
+      } else {
+        this.log.warn('The gate is not closed so cant open it, AND THAT IS STRANGE');
+      }
+
+    } else if (targetValue === this.TargetDoorState.CLOSED) {
+      if (this.lastState === this.platform.Characteristic.CurrentDoorState.OPEN) {
+        this.sendSet();
+        this.log.debug(`Closing... ${this.deviceConfig.closeTime}s remaining`);
+        this.targetState = targetValue;
+        this.lastState = this.platform.Characteristic.CurrentDoorState.CLOSING;
+        this.service.setCharacteristic(this.platform.Characteristic.CurrentDoorState, this.platform.Characteristic.CurrentDoorState.CLOSING);
+
+        setTimeout(() => {
+          this.log.debug('Should be closed now, and i ahould already receive closed event');
+          if (this.lastState === this.platform.Characteristic.CurrentDoorState.CLOSED) {
+            this.log.debug('its ok, looks closed');
+            this.service.setCharacteristic(this.platform.Characteristic.CurrentDoorState, this.platform.Characteristic.CurrentDoorState.CLOSED);
+          } else {
+            this.log.warn('smth went wrong. The gate is still not closed. Consider to extend close time or check is there is a obstruction detected');
+          }
+        }, this.deviceConfig.openTime * 1000);
+
+      } else if (this.lastState === this.CurrentDoorState.OPENING) {
+        this.log.debug('Stopped gate as it still was opening');
+        this.sendSet();
+        this.lastState = this.platform.Characteristic.CurrentDoorState.STOPPED;
+        this.service.setCharacteristic(this.platform.Characteristic.CurrentDoorState, this.platform.Characteristic.CurrentDoorState.STOPPED);
+      }
+    }
+  }
+
+  translateState(state: CharacteristicValue): string {
+    switch (state) {
+      case 0:
+        return 'OPEN';
+      case 1:
+        return 'CLOSED';
+      case 2:
+        return 'OPENING';
+      case 3:
+        return 'CLOSING';
+      case 4:
+        return 'STOPPED';
+      default:
+        return 'undefined';
+    }
+  }
+
 }

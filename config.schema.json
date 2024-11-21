@@ -1,16 +1,50 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
+  "pluginAlias": "HomebridgeDriewayGate",
   "pluginType": "platform",
   "singular": true,
   "strictValidation": false,
   "schema": {
     "type": "object",
     "properties": {
-      "name": {
-        "title": "Name",
-        "type": "string",
-        "required": true,
-        "default": "Example Dynamic Platform"
+      "devices": {
+        "type": "array",
+        "items": {
+          "title": "Device",
+          "type": "object",
+          "properties": {
+            "id": {
+              "title": "Device ID",
+              "description": "See <a href='https://github.com/alexryd/homebridge-shelly-ng/wiki/Finding-a-device-ID' target='_blank'>this page</a> for instructions on how to find your device's ID.",
+              "type": "string",
+              "placeholder": "e.g. shellyplus1-abcdef123456",
+              "required": true
+            },
+            "name": {
+              "title": "Name",
+              "type": "string",
+              "required": true,
+              "default": "Driveway Gate"
+            },
+            "openTime": {
+              "title": "Open gate time",
+              "description": "TODO",
+              "type": "integer",
+              "default": 3
+            },
+            "closeTime": {
+              "title": "Open gate time",
+              "description": "TODO",
+              "type": "integer",
+              "default": 3
+            },
+            "hostname": {
+              "title": "IP address or hostname",
+              "description": "Set this value if your device can't be discovered automatically.",
+              "type": "string",
+              "placeholder": "e.g. 192.168.1.100"
+            }
+          }
+        }
       }
     }
   }
