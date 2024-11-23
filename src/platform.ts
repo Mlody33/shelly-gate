@@ -5,7 +5,7 @@ import { DeviceConfig } from './config.js';
 
 type Uuid = string;
 
-export class DrivewayGatePlatformPlugin implements DynamicPlatformPlugin {
+export class ShellyDoorPlatformPlugin implements DynamicPlatformPlugin {
 
   public readonly Service: typeof Service;
   public readonly Characteristic: typeof Characteristic;

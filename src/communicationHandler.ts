@@ -30,12 +30,12 @@ export abstract class CommunicationHandler extends ConnectionHandler {
 
   protected async sendGetStatus() {
     this.log.debug('>> GetStatus');
-    return await this.send(ShellyMethod.GetStatus);
+    await this.send(ShellyMethod.GetStatus);
   }
 
   protected async sendSet() {
     this.log.debug('>> Set');
-    return await this.send(ShellyMethod.SwitchSet);
+    await this.send(ShellyMethod.SwitchSet);
   }
 
   async handleMessage(data: Buffer) {

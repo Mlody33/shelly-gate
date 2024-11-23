@@ -14,34 +14,36 @@
           "properties": {
             "id": {
               "title": "Device ID",
-              "description": "See <a href='https://github.com/alexryd/homebridge-shelly-ng/wiki/Finding-a-device-ID' target='_blank'>this page</a> for instructions on how to find your device's ID.",
+              "description": "Go to shelly url. Then Settings > Device Settings > Device Name. There should be Device ID. Paste it in the manner of the placeholder format",
               "type": "string",
-              "placeholder": "e.g. shellyplus1-abcdef123456",
+              "placeholder": "e.g. shellyplus1-<deviceid>",
               "required": true
             },
             "name": {
               "title": "Name",
+              "description": "Friendly device name. This will be visible as device name on UI",
               "type": "string",
               "required": true,
               "default": "Driveway Gate"
             },
-            "openTime": {
-              "title": "Open gate time",
-              "description": "TODO",
-              "type": "integer",
-              "default": 3
-            },
-            "closeTime": {
-              "title": "Open gate time",
-              "description": "TODO",
-              "type": "integer",
-              "default": 3
-            },
             "hostname": {
               "title": "IP address or hostname",
-              "description": "Set this value if your device can't be discovered automatically.",
+              "description": "Set IP|hostname of your shelly",
               "type": "string",
+              "required": true,
               "placeholder": "e.g. 192.168.1.100"
+            },
+            "openTime": {
+              "title": "Open gate time",
+              "description": "Set how many second gate|door need to open",
+              "type": "integer",
+              "default": 15
+            },
+            "closeTime": {
+              "title": "Set how many second gate|door need to close",
+              "description": "Set how many second gate|door need to close",
+              "type": "integer",
+              "default": 15
             }
           }
         }

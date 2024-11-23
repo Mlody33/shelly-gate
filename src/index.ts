@@ -1,11 +1,8 @@
 import type { API } from 'homebridge';
 
-import { DrivewayGatePlatformPlugin } from './platform.js';
+import { ShellyDoorPlatformPlugin } from './platform.js';
 import { PLATFORM_NAME } from './settings.js';
 
-/**
- * This method registers the platform with Homebridge
- */
 export default (api: API) => {
-  api.registerPlatform(PLATFORM_NAME, DrivewayGatePlatformPlugin);
+  api.registerPlatform(PLATFORM_NAME, ShellyDoorPlatformPlugin);
 };
