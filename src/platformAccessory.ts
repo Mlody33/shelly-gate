@@ -76,8 +76,10 @@ export class DrivewayGateAccessory extends CommunicationHandler {
 
   protected handleGetStatus(res: GetStatus): void {
     this.log.debug('<< GetStatus', res.result['input:0']);
+    this.printCurrentStates();
 
     if (typeof this.obstructionDetected === 'undefined' || typeof this.lastState === 'undefined' || typeof this.targetState === 'undefined') {
+
       if (typeof this.obstructionDetected === 'undefined') {
         this.obstructionDetected = false;
       }
@@ -93,8 +95,15 @@ export class DrivewayGateAccessory extends CommunicationHandler {
         }
       }
       if (typeof this.targetState === 'undefined') {
-        this.targetState = this.lastState;
+        if (this.lastState) {
+          this.service.setCharacteristic(this.TargetDoorState, this.TargetDoorState.OPEN);
+          this.targetState = this.TargetDoorState.OPEN;
+        } else {
+          this.service.setCharacteristic(this.TargetDoorState, this.TargetDoorState.CLOSED);
+          this.targetState = this.TargetDoorState.CLOSED;
+        }
       }
+
     } else if (this.lastState === this.CurrentDoorState.OPENING && this.targetState === this.TargetDoorState.OPEN) {
 
       if (this.currentState === this.CurrentDoorState.OPEN) {
@@ -125,7 +134,7 @@ export class DrivewayGateAccessory extends CommunicationHandler {
       if (res.result['input:0'].state) {
         this.lastState = this.CurrentDoorState.OPEN;
         this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPEN);
-      } else if (!res.result['input:0'].state) {
+      } else {
         this.lastState = this.CurrentDoorState.CLOSED;
         this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSED);
       }
@@ -137,6 +146,7 @@ export class DrivewayGateAccessory extends CommunicationHandler {
 
   protected handleNotifyStatus(res: NotifyStatus): void {
     this.log.debug('<< NotifyStatus', res.params);
+    this.printCurrentStates();
 
     if (res.params['input:0']?.state === true) {
       this.log.debug('received event that gate is not closed anymore');
@@ -146,7 +156,8 @@ export class DrivewayGateAccessory extends CommunicationHandler {
       } else {
         this.log.warn(`${this.deviceConfig.name} opening... trigerred by external device`);
         this.lastState = this.CurrentDoorState.OPEN;
-        this.targetState = this.CurrentDoorState.OPEN;
+        this.targetState = this.TargetDoorState.OPEN;
+        this.service.setCharacteristic(this.TargetDoorState, this.TargetDoorState.OPEN);
         this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPEN);
       }
     } else if (res.params['input:0']?.state === false) {
@@ -155,7 +166,9 @@ export class DrivewayGateAccessory extends CommunicationHandler {
       if (this.lastState === this.CurrentDoorState.CLOSING && this.targetState === this.TargetDoorState.CLOSED) {
         this.log.info(`${this.deviceConfig.name} closed`);
         this.obstructionDetected = false;
+        this.targetState = this.TargetDoorState.CLOSED;
         this.service.setCharacteristic(this.platform.Characteristic.ObstructionDetected, false);
+        this.service.setCharacteristic(this.TargetDoorState, this.TargetDoorState.CLOSED);
       } else if (this.lastState === this.CurrentDoorState.OPENING && this.targetState === this.TargetDoorState.OPEN) {
         this.log.warn(`${this.deviceConfig.name} was openning but for some reason has been closed`);
         this.obstructionDetected = true;
@@ -163,6 +176,7 @@ export class DrivewayGateAccessory extends CommunicationHandler {
       } else {
         this.log.info(`${this.deviceConfig.name} closed... triggered by external device`);
         this.targetState = this.TargetDoorState.CLOSED;
+        this.service.setCharacteristic(this.TargetDoorState, this.TargetDoorState.CLOSED);
       }
       this.lastState = this.CurrentDoorState.CLOSED;
       this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSED);
@@ -196,6 +210,7 @@ export class DrivewayGateAccessory extends CommunicationHandler {
 
   handleTargetDoorStateSet(targetValue: CharacteristicValue) {
     this.log.info('Triggered SET TargetDoorState:', this.translateState(targetValue));
+    this.printCurrentStates();
 
     if (targetValue === this.TargetDoorState.OPEN) {
       if (this.lastState === this.CurrentDoorState.CLOSED) {
@@ -279,6 +294,10 @@ export class DrivewayGateAccessory extends CommunicationHandler {
         }
       }
     }
+  }
+
+  printCurrentStates() {
+    this.log.debug(`CURRENT: ${this.translateState(this.currentState)}, LAST=${this.translateState(this.lastState)}, TARGET=${this.translateState(this.targetState)}`);
   }
 
   translateState(state: CharacteristicValue): string {
