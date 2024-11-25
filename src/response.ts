@@ -121,32 +121,3 @@ export interface NotifyStatus extends Event {
     method: string;
     params: NotifyParams;
 }
-
-
-// [11/19/2024; 11:36:10 PM] [HomebridgeDriewayGate] Handle notify event message {
-//     src: 'shellyplus1-a8032ab86ab4',
-//     dst: 'user_1',
-//     method: 'NotifyStatus',
-//     params: {
-//       ts: 1731566163.07,
-//       'switch:0': {
-//         id: 0,
-//         output: false,
-//         source: 'timer',
-//         timer_duration: null,
-//         timer_started_at: null
-//       }
-//     }
-//   }
-//   [11/19/2024, 11:36:32 PM] [HomebridgeDriewayGate] Handle notify event message {
-//     src: 'shellyplus1-a8032ab86ab4',
-//     dst: 'user_1',
-//     method: 'NotifyStatus',
-//     params: { ts: 1731566183.01, 'input:0': { id: 0, state: false } }
-//   }
-// [11/20/2024, 12:57:21 AM] [HomebridgeDriewayGate] handle event {
-//     src: 'shellyplus1-a8032ab86ab4',
-//     dst: 'Driveway Gate',
-//     method: 'NotifyEvent',
-//     params: { ts: 1731571032.17, events: [ [Object] ] }
-//   }

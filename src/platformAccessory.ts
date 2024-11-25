@@ -146,6 +146,7 @@ export class DrivewayGateAccessory extends CommunicationHandler {
       } else {
         this.log.warn(`${this.deviceConfig.name} opening... trigerred by external device`);
         this.lastState = this.CurrentDoorState.OPEN;
+        this.targetState = this.CurrentDoorState.OPEN;
         this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPEN);
       }
     } else if (res.params['input:0']?.state === false) {
@@ -155,6 +156,10 @@ export class DrivewayGateAccessory extends CommunicationHandler {
         this.log.info(`${this.deviceConfig.name} closed`);
         this.obstructionDetected = false;
         this.service.setCharacteristic(this.platform.Characteristic.ObstructionDetected, false);
+      } else if (this.lastState === this.CurrentDoorState.OPENING && this.targetState === this.TargetDoorState.OPEN) {
+        this.log.warn(`${this.deviceConfig.name} was openning but for some reason has been closed`);
+        this.obstructionDetected = true;
+        this.service.setCharacteristic(this.platform.Characteristic.ObstructionDetected, true);
       } else {
         this.log.info(`${this.deviceConfig.name} closed... triggered by external device`);
         this.targetState = this.TargetDoorState.CLOSED;
@@ -221,9 +226,11 @@ export class DrivewayGateAccessory extends CommunicationHandler {
           this.lastState = this.CurrentDoorState.OPENING;
           this.targetState = this.TargetDoorState.OPEN;
           this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPENING);
+
           setTimeout(() => {
             this.sendGetStatus();
           }, this.deviceConfig.openTime * 1000);
+
         } else if (this.targetState === this.TargetDoorState.OPEN) {
           this.lastState = this.CurrentDoorState.CLOSING;
           this.targetState = this.TargetDoorState.CLOSED;
@@ -260,9 +267,11 @@ export class DrivewayGateAccessory extends CommunicationHandler {
           this.lastState = this.CurrentDoorState.OPENING;
           this.targetState = this.TargetDoorState.OPEN;
           this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPENING);
+
           setTimeout(() => {
             this.sendGetStatus();
           }, this.deviceConfig.openTime * 1000);
+
         } else if (this.targetState === this.TargetDoorState.OPEN) {
           this.lastState = this.CurrentDoorState.CLOSING;
           this.targetState = this.TargetDoorState.CLOSED;

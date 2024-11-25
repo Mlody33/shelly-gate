@@ -50,19 +50,19 @@ export abstract class ConnectionHandler {
     switch (this.socket.readyState) {
       case WebSocket.CLOSED:
       case WebSocket.CLOSING: {
-        this.log.warn('CLOSED or CLOSING socket');
+        this.log.debug('CLOSED or CLOSING socket');
         this.socket = this.openSocket(this.hostname);
         break;
       }
       case WebSocket.CONNECTING: {
-        this.log.warn('CONNECTING socket');
+        this.log.debug('CONNECTING socket');
         await this.awaitConnection();
       }
     }
   }
 
   private awaitConnection(): Promise<void> {
-    this.log.warn('Await connection', this.socket.readyState);
+    this.log.debug('Await connection', this.socket.readyState);
     const soc = this.socket;
     if (soc.readyState === WebSocket.OPEN) {
       return Promise.resolve();
