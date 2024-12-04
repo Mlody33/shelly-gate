@@ -44,6 +44,12 @@
               "description": "Set how many second gate|door need to close",
               "type": "integer",
               "default": 15
+            },
+            "obstructionDetection": {
+              "title": "Obstruction detection",
+              "description": "This will send obstruction detection event when gate will not close or open in it's expected time",
+              "type": "boolean",
+              "default": true
             }
           }
         }

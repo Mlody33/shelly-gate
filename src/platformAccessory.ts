@@ -23,17 +23,9 @@ export class DrivewayGateAccessory extends CommunicationHandler {
 
     this.service = this.accessory.getService(this.platform.Service.GarageDoorOpener) || this.accessory.addService(this.platform.Service.GarageDoorOpener);
     this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.displayName);
-    this.service.getCharacteristic(CurrentDoorState)
-      .onGet(this.handleCurrentDoorStateGet.bind(this))
-      .onSet(this.handleCurrentDoorStateSet.bind(this));
 
     this.service.getCharacteristic(TargetDoorState)
-      .onGet(this.handleTargetDoorStateGet.bind(this))
       .onSet(this.handleTargetDoorStateSet.bind(this));
-
-    this.service.getCharacteristic(ObstructionDetected)
-      .onGet(this.handleObstructionDetectedGet.bind(this))
-      .onSet(this.handleObstructionDetectedSet.bind(this));
   }
 
   private get currentState(): number {
@@ -69,7 +61,7 @@ export class DrivewayGateAccessory extends CommunicationHandler {
   }
 
   protected async handleGetDeviceInfo(res: GetDeviceInfo): Promise<void> {
-    this.log.debug('<< GetDeviceInfo', res.result.id);
+    this.log.info('<< GetDeviceInfo', res.result.id);
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Allterco')
       .setCharacteristic(this.platform.Characteristic.Model, res.result.model)
@@ -78,7 +70,7 @@ export class DrivewayGateAccessory extends CommunicationHandler {
   }
 
   protected handleGetStatus(res: GetStatus): void {
-    this.log.debug('<< GetStatus', res.result['input:0']);
+    this.log.info('<< GetStatus', res.result['input:0']);
     this.printCurrentStates();
 
     if (typeof this.obstructionDetected === 'undefined' || typeof this.lastState === 'undefined' || typeof this.targetState === 'undefined') {
@@ -107,11 +99,16 @@ export class DrivewayGateAccessory extends CommunicationHandler {
 
       if (this.currentState === this.CurrentDoorState.OPEN) {
         this.log.info(`${this.deviceConfig.name} should be open now`);
+        this.lastState = this.CurrentDoorState.OPEN;
         this.service.updateCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPEN);
       } else {
         this.log.warn(`${this.deviceConfig.name} should be open but it is still closed`);
-        this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSED);
-        this.service.setCharacteristic(this.ObstructionDetected, true);
+        this.lastState = this.CurrentDoorState.CLOSED;
+        this.targetState = this.TargetDoorState.CLOSED;
+        this.service.updateCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSED);
+        if (this.deviceConfig.obstructionDetection) {
+          this.service.updateCharacteristic(this.ObstructionDetected, true);
+        }
       }
 
     } else if (this.lastState === this.CurrentDoorState.CLOSING && this.targetState === this.TargetDoorState.CLOSED) {
@@ -119,174 +116,137 @@ export class DrivewayGateAccessory extends CommunicationHandler {
       if (this.currentState === this.CurrentDoorState.CLOSED) {
         this.log.warn(`Something went wrong with the status update. But ${this.deviceConfig.name} seems to be closed`);
       } else {
-        this.log.warn(`${this.deviceConfig.name} should be closed now but it is not. Consider to extend closingTime [current: ${this.deviceConfig.closeTime}]`);
-        this.service.setCharacteristic(this.ObstructionDetected, true);
+        this.log.warn(`${this.deviceConfig.name} should be closed now but it is not`);
+        if (this.deviceConfig.obstructionDetection) {
+          this.service.updateCharacteristic(this.ObstructionDetected, true);
+        }
       }
+      this.log.warn(`Consider to extend closingTime [current: ${this.deviceConfig.closeTime}]`);
 
     } else if (this.targetState === this.lastState) {
 
-      this.log.debug(`${this.deviceConfig.name} is in it expected state. Updating states`);
+      this.log.info(`${this.deviceConfig.name} is in it expected state: ${this.translateState(this.lastState)}`);
       if (res.result['input:0'].state) {
-        this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPEN);
+        this.lastState = this.CurrentDoorState.OPEN;
+        this.service.updateCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPEN);
       } else {
-        this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSED);
+        this.lastState = this.CurrentDoorState.CLOSED;
+        this.service.updateCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSED);
       }
       this.targetState = this.lastState;
 
     }
   }
 
-
   protected handleNotifyStatus(res: NotifyStatus): void {
-    this.log.debug('<< NotifyStatus', res.params);
-    this.printCurrentStates();
-
     if (res.params['input:0']?.state === true) {
-      this.log.debug('received event that gate is not closed anymore');
+      this.log.info('received event that gate is not closed anymore');
+      this.printCurrentStates();
       this.currentState = this.CurrentDoorState.OPEN;
       if (this.lastState === this.CurrentDoorState.OPENING && this.targetState === this.TargetDoorState.OPEN) {
         this.log.info(`${this.deviceConfig.name} opening...`);
       } else {
         this.log.warn(`${this.deviceConfig.name} opening... triggered by external device`);
         this.targetState = this.TargetDoorState.OPEN;
-        this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPEN);
+        this.lastState = this.CurrentDoorState.OPEN;
+        this.service.updateCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPEN);
         this.service.updateCharacteristic(this.TargetDoorState, this.TargetDoorState.OPEN);
       }
     } else if (res.params['input:0']?.state === false) {
-      this.log.debug('received event that gate has been closed');
+      this.log.info('received event that gate has been closed');
+      this.printCurrentStates();
       this.currentState = this.CurrentDoorState.CLOSED;
       if (this.lastState === this.CurrentDoorState.CLOSING && this.targetState === this.TargetDoorState.CLOSED) {
         this.log.info(`${this.deviceConfig.name} closed`);
-        this.service.setCharacteristic(this.ObstructionDetected, false);
+        this.service.updateCharacteristic(this.ObstructionDetected, false);
       } else if (this.lastState === this.CurrentDoorState.OPENING && this.targetState === this.TargetDoorState.OPEN) {
         this.log.warn(`${this.deviceConfig.name} was openning but for some reason has been closed`);
-        this.service.setCharacteristic(this.ObstructionDetected, true);
+        if (this.deviceConfig.obstructionDetection) {
+          this.service.updateCharacteristic(this.ObstructionDetected, true);
+        }
       } else {
         this.log.info(`${this.deviceConfig.name} closed... triggered by external device`);
       }
       this.targetState = this.TargetDoorState.CLOSED;
       this.lastState = this.CurrentDoorState.CLOSED;
-      this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSED);
+      this.service.updateCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSED);
       this.service.updateCharacteristic(this.TargetDoorState, this.TargetDoorState.CLOSED);
     } else {
-      this.log.debug('received other events that are not implemented for now');
+      this.log.info('received other events');
+      this.printCurrentStates();
       if (res.params['switch:0']?.output === true) {
-        this.log.debug('shelly switch state changed');
+        this.log.info(`${this.deviceConfig.name} switch activated`);
+      } else if (res.params['switch:0']?.output === false) {
+        this.log.info(`${this.deviceConfig.name} switch deactivated`);
+      } else {
+        this.log.info('received event that is not implemented', res.params);
       }
     }
-
   }
 
-  protected handleSet(res: SetSwitch): void {
-    this.log.debug('Gate switch changed', res);
-  }
-
-  handleCurrentDoorStateGet() {
-    this.log.debug('Triggered GET CurrentDoorState', this.translateState(this.lastState));
-    return this.lastState;
-  }
-
-  handleCurrentDoorStateSet(currentState: CharacteristicValue) {
-    this.log.info('Triggered SET CurrentDoorState', this.translateState(currentState));
-    this.lastState = currentState as number;
-  }
-
-  handleTargetDoorStateGet() {
-    this.log.debug('Triggered GET TargetDoorState', this.translateState(this.targetState));
-    return this.targetState;
-  }
-
-  handleObstructionDetectedGet() {
-    this.log.debug('Triggered GET ObstructionDetected', this.obstructionDetected);
-    return this.obstructionDetected;
-  }
-
-  handleObstructionDetectedSet(obstructionValue: CharacteristicValue) {
-    this.log.info('Triggered SET ObstructionDetected', obstructionValue);
-    this.obstructionDetected = obstructionValue as boolean;
-  }
+  protected handleSet(res: SetSwitch): void { }
 
   handleTargetDoorStateSet(targetValue: CharacteristicValue) {
-    this.log.info('Triggered SET TargetDoorState:', this.translateState(targetValue));
+    this.log.info(`Triggered SET TargetDoorState; targetValue=${this.translateState(targetValue)}, lastState=${this.translateState(this.lastState)}`);
     this.printCurrentStates();
 
-    if (targetValue === this.TargetDoorState.OPEN) {
-      if (this.lastState === this.CurrentDoorState.CLOSED) {
-        this.sendSet();
-        this.log.debug(`Trigger ${this.deviceConfig.name} to open: [${this.deviceConfig.openTime}]s`);
-        this.targetState = targetValue;
-        this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPENING);
+    if (targetValue === this.TargetDoorState.OPEN && this.lastState === this.CurrentDoorState.CLOSED) {
 
-        setTimeout(() => {
-          this.sendGetStatus();
-        }, this.deviceConfig.openTime * 1000);
+      this.sendSet();
+      this.log.info(`Triggered ${this.deviceConfig.name} to open [${this.deviceConfig.openTime}]s`);
+      this.targetState = targetValue;
+      this.lastState = this.CurrentDoorState.OPENING;
+      this.service.updateCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPENING);
 
-      } else if (this.lastState === this.CurrentDoorState.CLOSING) {
-        this.sendSet();
-        this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.STOPPED);
-      } else if (this.lastState === this.CurrentDoorState.OPENING) {
-        this.sendSet();
-        this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.STOPPED);
-      } else if (this.lastState === this.CurrentDoorState.OPEN) {
-        this.log.warn('Gate is alreaady open');
-        this.targetState = this.currentState;
-      } else if (this.lastState === this.CurrentDoorState.STOPPED) {
-        this.sendSet();
-        if (this.targetState === this.TargetDoorState.CLOSED) {
-          this.targetState = this.TargetDoorState.OPEN;
-          this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPENING);
+      setTimeout(() => {
+        this.sendGetStatus();
+      }, this.deviceConfig.openTime * 1000);
 
-          setTimeout(() => {
-            this.sendGetStatus();
-          }, this.deviceConfig.openTime * 1000);
+    } else if (targetValue === this.TargetDoorState.CLOSED && this.lastState === this.CurrentDoorState.OPEN) {
+      this.sendSet();
+      this.log.info(`Trigger ${this.deviceConfig.name} to close: [${this.deviceConfig.closeTime}]s`);
+      this.targetState = targetValue;
+      this.lastState = this.CurrentDoorState.CLOSING;
+      this.service.updateCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSING);
 
-        } else if (this.targetState === this.TargetDoorState.OPEN) {
-          this.targetState = this.TargetDoorState.CLOSED;
-          this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSING);
-        }
-      }
+      setTimeout(() => {
+        this.sendGetStatus();
+      }, this.deviceConfig.closeTime * 1000);
 
-    } else if (targetValue === this.TargetDoorState.CLOSED) {
-      if (this.lastState === this.CurrentDoorState.OPEN) {
-        this.sendSet();
-        this.log.debug(`Trigger ${this.deviceConfig.name} to close: [${this.deviceConfig.closeTime}]s`);
-        this.targetState = targetValue;
-        this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSING);
+    } else if (this.lastState === this.CurrentDoorState.CLOSING || this.lastState === this.CurrentDoorState.OPENING) {
+      this.sendSet();
+      this.lastState = this.CurrentDoorState.STOPPED;
+      this.service.updateCharacteristic(this.CurrentDoorState, this.CurrentDoorState.STOPPED);
+    } else if (
+      (targetValue === this.TargetDoorState.OPEN && this.lastState === this.CurrentDoorState.OPEN) ||
+      (targetValue === this.TargetDoorState.CLOSED && this.lastState === this.CurrentDoorState.CLOSED)
+    ) {
+      this.log.warn(`${this.deviceConfig.name} is already ${this.translateState(targetValue)}`);
+      this.targetState = this.currentState;
+    } else if (targetValue === this.TargetDoorState.OPEN && this.lastState === this.CurrentDoorState.STOPPED) {
+      this.sendSet();
 
-        setTimeout(() => {
-          this.sendGetStatus();
-        }, this.deviceConfig.closeTime * 1000);
+      this.targetState = this.TargetDoorState.OPEN;
+      this.lastState = this.CurrentDoorState.OPENING;
+      this.service.updateCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPENING);
 
-      } else if (this.lastState === this.CurrentDoorState.OPENING) {
-        this.sendSet();
-        this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.STOPPED);
-      } else if (this.lastState === this.CurrentDoorState.CLOSING) {
-        this.sendSet();
-        this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.STOPPED);
-      } else if (this.lastState === this.CurrentDoorState.CLOSED) {
-        this.log.warn('Gate is alreaady closed');
-        this.targetState = this.currentState;
-      } else if (this.lastState === this.CurrentDoorState.STOPPED) {
-        this.sendSet();
-        if (this.targetState === this.TargetDoorState.CLOSED) {
-          this.targetState = this.TargetDoorState.OPEN;
-          this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.OPENING);
+      setTimeout(() => {
+        this.sendGetStatus();
+      }, this.deviceConfig.openTime * 1000);
 
-          setTimeout(() => {
-            this.sendGetStatus();
-          }, this.deviceConfig.openTime * 1000);
-
-        } else if (this.targetState === this.TargetDoorState.OPEN) {
-          this.targetState = this.TargetDoorState.CLOSED;
-          this.service.setCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSING);
-        }
-      }
+    } else if (targetValue === this.TargetDoorState.CLOSED && this.lastState === this.CurrentDoorState.STOPPED) {
+      this.sendSet();
+      this.targetState = this.TargetDoorState.CLOSED;
+      this.lastState = this.CurrentDoorState.CLOSING;
+      this.service.updateCharacteristic(this.CurrentDoorState, this.CurrentDoorState.CLOSING);
     }
+
   }
+
 
   printCurrentStates() {
     // eslint-disable-next-line max-len
-    this.log.debug(`[CURRENT=${this.translateState(this.currentState)}] [LAST=${this.translateState(this.lastState)}] [TARGET=${this.translateState(this.targetState)}]`);
+    this.log.info(`[CURRENT=${this.translateState(this.currentState)}] [LAST=${this.translateState(this.lastState)}] [TARGET=${this.translateState(this.targetState)}]`);
   }
 
   translateState(state: CharacteristicValue): string {

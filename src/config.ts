@@ -5,4 +5,5 @@ export interface DeviceConfig {
   openTime: number;
   closeTime: number;
   hostname: string;
+  obstructionDetection: boolean;
 }
