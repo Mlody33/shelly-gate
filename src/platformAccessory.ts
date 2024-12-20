@@ -165,6 +165,7 @@ export class DrivewayGateAccessory extends CommunicationHandler {
           this.service.updateCharacteristic(this.ObstructionDetected, true);
         }
       } else {
+        this.service.updateCharacteristic(this.ObstructionDetected, false);
         this.log.info(`${this.deviceConfig.name} closed... triggered by external device`);
       }
       this.targetState = this.TargetDoorState.CLOSED;
