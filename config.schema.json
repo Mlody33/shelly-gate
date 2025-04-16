@@ -5,48 +5,45 @@
   "strictValidation": false,
   "schema": {
     "type": "object",
-    "name": "devices",
     "properties": {
-      "devices": {
-        "type": "array",
-        "items": {
-          "title": "Device",
-          "type": "object",
-          "properties": {
-            "name": {
-              "title": "Name",
-              "description": "Friendly device name visible on UI",
-              "type": "string",
-              "required": true,
-              "default": "Driveway Gate"
-            },
-            "hostname": {
-              "title": "IP address or hostname",
-              "description": "Set IP or hostname of your shelly",
-              "type": "string",
-              "required": true,
-              "placeholder": "e.g. 192.168.1.100"
-            },
-            "openTime": {
-              "title": "Open gate time",
-              "description": "Set how many second gate|door need to open",
-              "type": "integer",
-              "default": 15
-            },
-            "closeTime": {
-              "title": "Close gate time",
-              "description": "Set how many second gate|door need to close",
-              "type": "integer",
-              "default": 15
-            },
-            "obstructionDetection": {
-              "title": "Obstruction detection",
-              "description": "This adds support to obstruction detection when gate will doesn't close or open within expected time",
-              "type": "boolean",
-              "default": true
-            }
-          }
-        }
+      "id": {
+        "title": "Device ID",
+        "description": "Go to Device ip address > Settings > Device Settings > Device Name",
+        "type": "string",
+        "placeholder": "e.g. shellyplus1-<deviceid>",
+        "required": true
+      },
+      "name": {
+        "title": "Name",
+        "description": "Friendly device name visible on UI",
+        "type": "string",
+        "required": true,
+        "default": "Driveway Gate"
+      },
+      "hostname": {
+        "title": "IP address or hostname",
+        "description": "Set IP or hostname of your shelly",
+        "type": "string",
+        "required": true,
+        "placeholder": "e.g. 192.168.1.100"
+      },
+      "openTime": {
+        "title": "Open gate time",
+        "description": "Set how many second gate|door need to open",
+        "type": "integer",
+        "default": 15
+      },
+      "closeTime": {
+        "title": "Close gate time",
+        "description": "Set how many second gate|door need to close",
+        "type": "integer",
+        "default": 15
+      },
+      "obstructionDetection": {
+        "title": "Obstruction detection",
+        "description": "This adds support to obstruction detection when gate will doesn't close or open within expected time",
+        "type": "boolean",
+        "default": true
       }
     }
   }
