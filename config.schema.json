@@ -5,6 +5,7 @@
   "strictValidation": false,
   "schema": {
     "type": "object",
+    "name": "devices",
     "properties": {
       "devices": {
         "type": "array",
