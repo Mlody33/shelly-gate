@@ -12,23 +12,16 @@
           "title": "Device",
           "type": "object",
           "properties": {
-            "id": {
-              "title": "Device ID",
-              "description": "Go to shelly url. Then Settings > Device Settings > Device Name. There should be Device ID. Paste it in the manner of the placeholder format",
-              "type": "string",
-              "placeholder": "e.g. shellyplus1-<deviceid>",
-              "required": true
-            },
             "name": {
               "title": "Name",
-              "description": "Friendly device name. This will be visible as device name on UI",
+              "description": "Friendly device name visible on UI",
               "type": "string",
               "required": true,
               "default": "Driveway Gate"
             },
             "hostname": {
               "title": "IP address or hostname",
-              "description": "Set IP|hostname of your shelly",
+              "description": "Set IP or hostname of your shelly",
               "type": "string",
               "required": true,
               "placeholder": "e.g. 192.168.1.100"
@@ -40,14 +33,14 @@
               "default": 15
             },
             "closeTime": {
-              "title": "Set how many second gate|door need to close",
+              "title": "Close gate time",
               "description": "Set how many second gate|door need to close",
               "type": "integer",
               "default": 15
             },
             "obstructionDetection": {
               "title": "Obstruction detection",
-              "description": "This will send obstruction detection event when gate will not close or open in it's expected time",
+              "description": "This adds support to obstruction detection when gate will doesn't close or open within expected time",
               "type": "boolean",
               "default": true
             }
