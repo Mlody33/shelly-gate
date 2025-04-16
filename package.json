@@ -3,17 +3,17 @@
   "displayName": "Homebridge Shelly Door Controller",
   "type": "module",
   "version": "1.3.0",
-  "private": true,
+  "private": false,
   "description": "This is homebridge plugin to use shelly plus 1 as garage or gate door controller",
   "author": "Mlody333",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/Mlody33/shelly-gate#readme",
+  "homepage": "https://github.com/Mlody33/homebridge-shelly-door#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Mlody33/shelly-gate.git"
+    "url": "https://github.com/Mlody33/homebridge-shelly-door.git"
   },
   "bugs": {
-    "url": "https://github.com/Mlody33/shelly-gate/issues"
+    "url": "https://github.com/Mlody33/homebridge-shelly-door/issues"
   },
   "keywords": [
     "homebridge-plugin"
@@ -45,5 +45,6 @@
   "dependencies": {
     "events": "^3.3.0",
     "ws": "^8.18.0"
-  }
+  },
+  "types": "./dist/index.d.ts"
 }
