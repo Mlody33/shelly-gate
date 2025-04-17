@@ -1,7 +1,7 @@
 {
   "pluginAlias": "HomebridgeShellyDoor",
   "pluginType": "platform",
-  "singular": true,
+  "singular": false,
   "strictValidation": false,
   "schema": {
     "type": "object",
@@ -43,7 +43,7 @@
         "title": "Obstruction detection",
         "description": "This adds support to obstruction detection when gate will doesn't close or open within expected time",
         "type": "boolean",
-        "default": true
+        "default": false
       }
     }
   }

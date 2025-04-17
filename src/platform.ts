@@ -22,7 +22,11 @@ export class ShellyDoorPlatformPlugin implements DynamicPlatformPlugin {
 
     this.api.on('didFinishLaunching', () => {
       log.debug('Executed didFinishLaunching callback');
-      this.discoverDevices();
+      if(this.validateConfig(this.config)) {
+        this.discoverDevices();
+      } else {
+        this.log.error('Invalid configuration, please check plugin configuration');
+      }
     });
   }
 
@@ -35,6 +39,21 @@ export class ShellyDoorPlatformPlugin implements DynamicPlatformPlugin {
     this.accessories.set(accessory.UUID, accessory);
   }
 
+  validateConfig(device: PlatformConfig): boolean {
+    if (device.hostname === undefined) {
+      this.log.error('Hostname is required');
+      return false;
+    }
+    if (device.id === undefined) {
+      this.log.error('ID is required');
+      return false;
+    }
+    if (device.name === undefined) {
+      this.log.error('Name is required');
+      return false;
+    }
+    return true;
+  }
 
   discoverDevices() {
     const device: DeviceConfig = {
@@ -47,7 +66,6 @@ export class ShellyDoorPlatformPlugin implements DynamicPlatformPlugin {
     } as DeviceConfig;
 
     this.log.debug('Devices to discovery', device);
-    // for (const device of devices) {
 
     const uuid = this.api.hap.uuid.generate(device.id);
 
@@ -78,7 +96,6 @@ export class ShellyDoorPlatformPlugin implements DynamicPlatformPlugin {
     }
 
     this.discoveredCacheUUIDs.push(uuid);
-    // }
 
     for (const [uuid, accessory] of this.accessories) {
       if (!this.discoveredCacheUUIDs.includes(uuid)) {
