@@ -61,19 +61,27 @@ export abstract class CommunicationHandler extends ConnectionHandler {
   }
 
   private async send(method: ShellyMethod) {
-    switch (method) {
-      case ShellyMethod.GetDeviceInfo:
-      case ShellyMethod.GetStatus: {
-        const message = JSON.stringify({ id: 2, src: this.deviceConfig.name, method: method });
-        this.log.debug('msg', message);
-        this.sendMessage(message);
-        break;
+    try {
+      switch (method) {
+        case ShellyMethod.GetDeviceInfo:
+        case ShellyMethod.GetStatus: {
+          const message = JSON.stringify({ id: 2, src: this.deviceConfig.name, method: method });
+          this.log.debug('msg', message);
+          this.sendMessage(message).catch(error => { 
+            this.log.debug('error', error);
+          });
+          break;
+        }
+        case ShellyMethod.SwitchSet: {
+          const message = JSON.stringify({ id: 2, src: this.deviceConfig.name, method: method, params: { id: 0, on: true } });
+          this.sendMessage(message).catch(error => { 
+            this.log.debug('error', error);
+          });
+          break;
+        }
       }
-      case ShellyMethod.SwitchSet: {
-        const message = JSON.stringify({ id: 2, src: this.deviceConfig.name, method: method, params: { id: 0, on: true } });
-        this.sendMessage(message);
-        break;
-      }
+    } catch (e) {
+      this.log.error('Failed to send message to shelly device');
     }
   }
 

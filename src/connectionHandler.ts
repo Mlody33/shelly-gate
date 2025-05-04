@@ -27,7 +27,7 @@ export abstract class ConnectionHandler {
     } catch (e) {
       new Promise<void>((resolve, reject) => {
         this.socket.once('close', () => {
-          reject(new Error('error connecting'));
+          reject(this.log.error('error connecting'));
         });
 
         this.socket.once('open', () => {
@@ -67,12 +67,12 @@ export abstract class ConnectionHandler {
     if (soc.readyState === WebSocket.OPEN) {
       return Promise.resolve();
     } else if (soc.readyState !== WebSocket.CONNECTING) {
-      return Promise.reject(new Error('websocket still not ready'));
+      return Promise.reject(this.log.error('websocket still not ready'));
     }
 
     return new Promise((resolve, reject) => {
       soc.once('close', () => {
-        reject(new Error('error connecting'));
+        reject(this.log.error('error connecting'));
       });
 
       soc.once('open', () => {
